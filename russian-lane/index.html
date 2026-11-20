@@ -30,6 +30,7 @@ header.top{position:sticky;top:env(safe-area-inset-top,0px);z-index:5;background
 .brand{font-family:var(--display);font-weight:700;font-size:18px;letter-spacing:.01em;margin-right:auto;display:flex;align-items:baseline;gap:8px}
 .brand small{font-family:var(--body);font-weight:500;font-size:12px;color:var(--muted)}
 .sync{font-size:12px;color:var(--muted)}
+.vsel{background:var(--bg);border:1px solid var(--line);border-radius:6px;padding:2px 4px;font-size:12px}
 nav.tabs{display:flex;gap:4px;overflow-x:auto;padding-bottom:8px;scrollbar-width:none}
 nav.tabs a{flex:0 0 auto;text-decoration:none;color:var(--muted);padding:7px 12px;border-radius:999px;font-weight:600;font-size:14px;display:flex;gap:6px;align-items:center}
 nav.tabs a span.ru{font-family:var(--display);font-weight:500;font-size:12px;opacity:.75}
@@ -157,6 +158,7 @@ textarea{min-height:150px;resize:vertical;font-family:var(--body)}
     <div class="bar">
       <div class="brand">Russian Lane <small>русский для доты и песен</small></div>
       <div class="sync" id="sync">Saved on this device</div>
+      <label class="sync" for="voiceSel">Voice <select id="voiceSel" class="vsel"><option value="auto">Auto</option><option value="browser">Device voice</option><option value="claude">Claude voice</option></select></label>
     </div>
     <nav class="tabs" aria-label="Sections">
       <a href="#alphabet" data-v="alphabet">Alphabet <span class="ru">Алфавит</span></a>
@@ -461,30 +463,49 @@ function setSync(t){$("#sync").textContent=t}
 })();
 
 /* ---------- Speech ---------- */
-let TTS=null, ttsOff=false, SAMPLE=null;
+let TTS=null, ttsOff=false, ttsLangs=null, SAMPLE=null;
 if(window.claude&&window.claude.use){
-  window.claude.use("tts").then(t=>{TTS=t}).catch(()=>{});
+  window.claude.use("tts").then(async t=>{TTS=t;if(t&&t.languages){try{ttsLangs=await t.languages()}catch(e){ttsLangs=null}}}).catch(()=>{});
   window.claude.use("sample").then(s=>{SAMPLE=s;refreshAiButtons()}).catch(()=>{refreshAiButtons()});
 }
+// Voice choice: "auto" prefers a real Russian voice from the browser/system, then Claude's voice
+// only if it reports Russian support (otherwise it reads Cyrillic with an English accent).
+let voicePref="auto";try{voicePref=localStorage.getItem("russianLane.voice")||"auto"}catch(e){}
+const voiceSel=document.getElementById("voiceSel");voiceSel.value=voicePref;
+voiceSel.addEventListener("change",()=>{voicePref=voiceSel.value;try{localStorage.setItem("russianLane.voice",voicePref)}catch(e){};speak("привет")});
+function browserVoice(lang){
+  try{if(!("speechSynthesis" in window))return null;const p=lang.slice(0,2).toLowerCase();
+    const vs=speechSynthesis.getVoices().filter(v=>v.lang&&v.lang.toLowerCase().replace("_","-").startsWith(p));
+    return vs.find(v=>/google|natural|online/i.test(v.name))||vs[0]||null}catch(e){return null}
+}
+try{speechSynthesis.getVoices();speechSynthesis.addEventListener("voiceschanged",()=>{})}catch(e){}
+const claudeSpeaks=lang=>!!(TTS&&!ttsOff&&Array.isArray(ttsLangs)&&ttsLangs.some(l=>String(l).toLowerCase().startsWith(lang.slice(0,2).toLowerCase())));
 function browserSpeak(text,lang){
   try{
     if(!("speechSynthesis" in window)){toast("Audio isn't available in this browser");return}
     speechSynthesis.cancel();
     const u=new SpeechSynthesisUtterance(text);u.lang=lang;u.rate=.85;
-    const v=speechSynthesis.getVoices().find(v=>v.lang&&v.lang.toLowerCase().startsWith(lang.slice(0,2)));
-    if(v)u.voice=v; else if(lang.startsWith("ru"))toast("No Russian voice found. Install one in your system's speech settings.");
+    const v=browserVoice(lang);
+    if(v)u.voice=v; else toast("No Russian voice on this device. Install one in your system's speech settings.");
     speechSynthesis.speak(u);
   }catch(e){}
 }
+function claudeSpeak(text,lang){
+  TTS.speak(text,{language:lang,rate:.9}).catch(e=>{
+    const c=e&&e.code;
+    if(c==="not_granted")ttsOff=true;
+    if(!["stopped","replaced","viewer_stopped"].includes(c))browserSpeak(text,lang);
+  });
+}
 function speak(text,lang){
   lang=lang||"ru-RU";text=String(text).replace(/\u0301/g,"");
-  if(TTS&&!ttsOff){
-    TTS.speak(text,{language:lang,rate:.9}).catch(e=>{
-      const c=e&&e.code;
-      if(c==="not_granted")ttsOff=true;
-      if(!["stopped","replaced","viewer_stopped"].includes(c))browserSpeak(text,lang);
-    });
-  } else browserSpeak(text,lang);
+  if(voicePref==="claude"&&TTS&&!ttsOff){
+    if(!claudeSpeaks(lang))toast("Claude's voice may not support Russian here. Switch Voice to Auto if it sounds English.");
+    return claudeSpeak(text,lang);
+  }
+  if(voicePref==="browser"||browserVoice(lang))return browserSpeak(text,lang);
+  if(claudeSpeaks(lang))return claudeSpeak(text,lang);
+  browserSpeak(text,lang);
 }
 const spkBtn=(text,lang)=>`<button class="spk" data-say="${esc(text)}" ${lang?`data-lang="${lang}"`:""} aria-label="Listen">${SPK}</button>`;
 document.addEventListener("click",e=>{const b=e.target.closest("[data-say]");if(b){e.preventDefault();speak(b.dataset.say,b.dataset.lang)}});
