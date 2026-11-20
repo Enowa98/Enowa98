@@ -283,6 +283,7 @@ class ClaudeBackend:
         self.model = model
         self.name = "Claude"
         lang = LANG_NAMES.get(target, target)
+        self.lang = lang
         self.system = (
             f"You translate live Russian speech into {lang} for a learner watching Russian Twitch "
             "streams and playing Dota 2. The text comes from automatic speech recognition, so it can "
@@ -292,12 +293,24 @@ class ClaudeBackend:
             "and nothing else.")
 
     def translate(self, lines, context):
+        out = self._ask(lines, context, extra="")
+        # Small models sometimes echo the Russian instead of translating it. Retry those lines once.
+        bad = [i for i, t in enumerate(out) if self.lang != "Russian" and looks_russian(t)]
+        if bad:
+            retry = self._ask([lines[i] for i in bad], context,
+                              extra=f" Do NOT repeat the Russian text: every line must be written in {self.lang}.")
+            for i, t in zip(bad, retry):
+                out[i] = t if t and not looks_russian(t) else ""
+        return out
+
+    def _ask(self, lines, context, extra):
         ctx = "\n".join(context[-6:]) or "(none)"
         numbered = "\n".join(f"{i + 1}. {t}" for i, t in enumerate(lines))
         kwargs = dict(model=self.model, max_tokens=2048, system=self.system,
                       output_config={"effort": "low"},
                       messages=[{"role": "user", "content":
-                                 f"Earlier lines, for context only:\n{ctx}\n\nTranslate:\n{numbered}"}])
+                                 f"Earlier lines, for context only:\n{ctx}\n\n"
+                                 f"Translate these lines into {self.lang}.{extra}\n{numbered}"}])
         if "haiku" not in self.model:   # server-side fallback if a request is declined
             kwargs.update(betas=["server-side-fallback-2026-07-01"], fallbacks="default")
         while True:
@@ -315,6 +328,14 @@ class ClaudeBackend:
             if head.isdigit() and rest:
                 found[int(head)] = rest.strip()
         return [found.get(i + 1, "") for i in range(len(lines))]
+
+
+def looks_russian(text):
+    letters = [c for c in text if c.isalpha()]
+    if not letters:
+        return False
+    cyr = sum(1 for c in letters if "\u0400" <= c <= "\u04ff")
+    return cyr / len(letters) > 0.5
 
 
 def make_backend(args):
