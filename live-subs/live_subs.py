@@ -201,17 +201,32 @@ def is_junk(text):
     return any(h in t for h in HALLUCINATIONS)
 
 
-def transcribe(model, audio, lang, prompt):
+SLAVIC = ("ru", "uk", "be")
+
+
+def transcribe(model, audio, lang, prompt, only_lang=True):
+    """Returns (text, skipped_language). With only_lang, audio that Whisper doesn't hear as
+    Russian (or Ukrainian/Belarusian, which it confuses with Russian) is skipped, so English ads,
+    music or a Discord call in another language are not shown or sent for translation."""
     if float(np.sqrt(np.mean(audio ** 2))) < 0.002:          # basically silent
-        return ""
-    segments, _ = model.transcribe(
-        audio, language=None if lang == "auto" else lang, beam_size=3,
-        vad_filter=True, vad_parameters={"min_silence_duration_ms": 300},
-        condition_on_previous_text=False, without_timestamps=True, initial_prompt=prompt)
+        return "", None
+    opts = dict(beam_size=3, vad_filter=True, vad_parameters={"min_silence_duration_ms": 300},
+                condition_on_previous_text=False, without_timestamps=True, initial_prompt=prompt)
+    if lang != "auto" and only_lang:
+        segments, info = model.transcribe(audio, language=None, **opts)   # detect first (cheap)
+        if not info.duration_after_vad:
+            return "", None
+        probs = dict(info.all_language_probs or [])
+        if sum(probs.get(code, 0.0) for code in SLAVIC) < 0.3:
+            return "", info.language
+        if info.language != lang:                                       # e.g. heard as "uk": redo as Russian
+            segments, info = model.transcribe(audio, language=lang, **opts)
+    else:
+        segments, info = model.transcribe(audio, language=None if lang == "auto" else lang, **opts)
     parts = [s.text.strip() for s in segments
              if not (s.no_speech_prob > 0.6 and s.avg_logprob < -1.0)]
     text = " ".join(p for p in parts if p).strip()
-    return "" if is_junk(text) else text
+    return ("" if is_junk(text) else text), None
 
 
 LANG_NAMES = {"zh-CN": "Simplified Chinese", "zh-TW": "Traditional Chinese", "en": "English"}
@@ -499,10 +514,12 @@ def worker(args, ui_q, paused, stop):
             continue
         t0 = time.time()
         try:
-            text = transcribe(model, audio, args.lang, prompt)
+            text, skipped = transcribe(model, audio, args.lang, prompt, not args.any_language)
         except Exception as e:  # noqa: BLE001
             status(f"Recognition error: {e}")
             continue
+        if skipped and not paused.is_set():
+            status(f"Skipped speech in another language ({skipped}) · {tr_name}")
         if not text:
             continue
         n += 1
@@ -529,6 +546,8 @@ def main():
     ap.add_argument("--lines", type=int, default=3, help="how many lines to show")
     ap.add_argument("--opacity", type=float, default=0.88, help="window opacity 0.3-1.0")
     ap.add_argument("--no-translit", action="store_true", help="hide the Latin-letter pronunciation line")
+    ap.add_argument("--any-language", action="store_true",
+                    help="don't skip speech that isn't Russian (by default it is ignored and not translated)")
     ap.add_argument("--no-prompt", action="store_true", help="don't give Whisper the Dota word hints")
     args = ap.parse_args()
 
