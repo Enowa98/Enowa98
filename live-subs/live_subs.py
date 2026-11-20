@@ -20,7 +20,6 @@ import queue
 import sys
 import threading
 import time
-from concurrent.futures import ThreadPoolExecutor
 
 import numpy as np
 
@@ -215,12 +214,132 @@ def transcribe(model, audio, lang, prompt):
     return "" if is_junk(text) else text
 
 
-def make_translator(target):
-    if target == "none":
+LANG_NAMES = {"zh-CN": "Simplified Chinese", "zh-TW": "Traditional Chinese", "en": "English"}
+
+
+class GoogleBackend:
+    """Free Google Translate (no key). It blocks you for a while if you send too many requests,
+    so lines are sent in batches, at most one request every 1.5 s, and after a block we wait
+    and use MyMemory (another free service) in the meantime."""
+    name = "Google"
+
+    def __init__(self, target):
+        from deep_translator import GoogleTranslator
+        self.google = GoogleTranslator(source="ru", target=target)
+        self.target = target
+        self.cooldown_until = 0.0
+        self.last = 0.0
+        self.mymemory = None
+
+    def translate(self, lines, context):
+        joined = "\n".join(lines)
+        if time.time() >= self.cooldown_until:
+            wait = 1.5 - (time.time() - self.last)
+            if wait > 0:
+                time.sleep(wait)
+            self.last = time.time()
+            try:
+                out = self.google.translate(joined) or ""
+                parts = out.split("\n")
+                return parts if len(parts) == len(lines) else [out] + [""] * (len(lines) - 1)
+            except Exception as e:  # noqa: BLE001
+                if "TooManyRequests" not in type(e).__name__ and "429" not in str(e):
+                    raise
+                self.cooldown_until = time.time() + 120
+                print("[translate] Google is rate-limiting; pausing it for 2 minutes, using MyMemory")
+        return self._mymemory(lines)
+
+    def _mymemory(self, lines):
+        from deep_translator import MyMemoryTranslator
+        if self.mymemory is None:
+            target = {"en": "en-GB", "zh-CN": "zh-CN", "zh-TW": "zh-TW"}.get(self.target, self.target)
+            self.mymemory = MyMemoryTranslator(source="ru-RU", target=target)
+        return [self.mymemory.translate(line) or "" for line in lines]
+
+
+class ClaudeBackend:
+    """Claude translation: understands gamer slang, swearing and context from earlier lines.
+    Needs an Anthropic API key in the ANTHROPIC_API_KEY environment variable (paid per use)."""
+
+    def __init__(self, target, model):
+        import anthropic
+        self.anthropic = anthropic
+        self.client = anthropic.Anthropic()
+        self.model = model
+        self.name = "Claude"
+        lang = LANG_NAMES.get(target, target)
+        self.system = (
+            f"You translate live Russian speech into {lang} for a learner watching Russian Twitch "
+            "streams and playing Dota 2. The text comes from automatic speech recognition, so it can "
+            "contain recognition mistakes: translate what the speaker most likely meant. Keep the tone; "
+            "translate swearing honestly, not softened. Keep Dota terms recognisable (hero names, items). "
+            "Reply with exactly one numbered line per input line, in the same order, like '1. ...', "
+            "and nothing else.")
+
+    def translate(self, lines, context):
+        ctx = "\n".join(context[-6:]) or "(none)"
+        numbered = "\n".join(f"{i + 1}. {t}" for i, t in enumerate(lines))
+        kwargs = dict(model=self.model, max_tokens=2048, system=self.system,
+                      output_config={"effort": "low"},
+                      messages=[{"role": "user", "content":
+                                 f"Earlier lines, for context only:\n{ctx}\n\nTranslate:\n{numbered}"}])
+        if "haiku" not in self.model:   # server-side fallback if a request is declined
+            kwargs.update(betas=["server-side-fallback-2026-07-01"], fallbacks="default")
+        while True:
+            try:
+                resp = self.client.beta.messages.create(**kwargs)
+                break
+            except self.anthropic.RateLimitError as e:
+                time.sleep(int(e.response.headers.get("retry-after", "10")))
+        if resp.stop_reason == "refusal":
+            return ["(Claude declined to translate this)"] + [""] * (len(lines) - 1)
+        text = "".join(b.text for b in resp.content if b.type == "text")
+        found = {}
+        for row in text.splitlines():
+            head, _, rest = row.strip().partition(". ")
+            if head.isdigit() and rest:
+                found[int(head)] = rest.strip()
+        return [found.get(i + 1, "") for i in range(len(lines))]
+
+
+def make_backend(args):
+    if args.target == "none" or args.translator == "none":
         return None
-    from deep_translator import GoogleTranslator
-    tr = GoogleTranslator(source="auto", target=target)
-    return lambda text: tr.translate(text)
+    use_claude = args.translator == "claude" or (
+        args.translator == "auto" and os.environ.get("ANTHROPIC_API_KEY"))
+    if use_claude:
+        return ClaudeBackend(args.target, args.claude_model)
+    return GoogleBackend(args.target)
+
+
+def translation_loop(backend, tr_q, ui_q, log_path, stop):
+    """Translates lines in small batches so the translation service gets fewer requests."""
+    context = []
+    while not stop.is_set():
+        try:
+            batch = [tr_q.get(timeout=0.5)]
+        except queue.Empty:
+            continue
+        time.sleep(0.4)                                   # let lines that arrive together share a request
+        while len(batch) < 6:
+            try:
+                batch.append(tr_q.get_nowait())
+            except queue.Empty:
+                break
+        texts = [b[1] for b in batch]
+        try:
+            results = backend.translate(texts, context) if backend else [""] * len(batch)
+        except Exception as e:  # noqa: BLE001
+            msg = getattr(e, "message", None) or e.__class__.__name__
+            results = [f"(translation failed: {msg})"] * len(batch)
+            print(f"[translate] {backend.name} error: {e}", file=sys.stderr)
+        context = (context + texts)[-10:]
+        with open(log_path, "a", encoding="utf-8") as f:
+            for (line_id, text, stamp), tr in zip(batch, results):
+                if backend:
+                    ui_q.put(("tr", line_id, tr))
+                f.write(f"[{stamp}] {text}\n" + (f"           → {tr}\n" if tr else ""))
+                print(f"[{stamp}] {text}" + (f"\n           → {tr}" if tr else ""))
 
 
 # ---------------------------------------------------------------- Window
@@ -357,8 +476,7 @@ def worker(args, ui_q, paused, stop):
     try:
         add_cuda_dll_paths()
         model, model_name, dev = load_model(args.model, args.device, status)
-        translate = make_translator(args.target)
-        pool = ThreadPoolExecutor(max_workers=1)
+        backend = make_backend(args)
         audio_q = queue.Queue()
         threading.Thread(target=capture_loop, args=(args.device_index, audio_q, paused, stop, status),
                          daemon=True).start()
@@ -370,6 +488,9 @@ def worker(args, ui_q, paused, stop):
     os.makedirs("transcripts", exist_ok=True)
     log_path = os.path.join("transcripts", datetime.date.today().isoformat() + ".txt")
     prompt = DOTA_PROMPT if not args.no_prompt else None
+    tr_q = queue.Queue()
+    threading.Thread(target=translation_loop, args=(backend, tr_q, ui_q, log_path, stop), daemon=True).start()
+    tr_name = backend.name if backend else "no translation"
     n = 0
     while not stop.is_set():
         try:
@@ -388,27 +509,17 @@ def worker(args, ui_q, paused, stop):
         line_id = n
         ui_q.put(("ru", line_id, text))
         if not paused.is_set():
-            status(f"{model_name} · {dev.upper()} · {time.time() - t0:.1f}s · log: {log_path}")
-        stamp = datetime.datetime.now().strftime("%H:%M:%S")
-
-        def do_translate(text=text, line_id=line_id, stamp=stamp):
-            tr = ""
-            if translate:
-                try:
-                    tr = translate(text) or ""
-                except Exception as e:  # noqa: BLE001
-                    tr = f"(translation failed: {e.__class__.__name__})"
-                ui_q.put(("tr", line_id, tr))
-            with open(log_path, "a", encoding="utf-8") as f:
-                f.write(f"[{stamp}] {text}\n" + (f"           → {tr}\n" if tr else ""))
-            print(f"[{stamp}] {text}" + (f"\n           → {tr}" if tr else ""))
-
-        pool.submit(do_translate)
+            status(f"{model_name} · {dev.upper()} · {time.time() - t0:.1f}s · {tr_name} · log: {log_path}")
+        tr_q.put((line_id, text, datetime.datetime.now().strftime("%H:%M:%S")))
 
 
 def main():
     ap = argparse.ArgumentParser(description="Live Russian subtitles for anything your PC plays.")
     ap.add_argument("--target", default="zh-CN", help="translation language: zh-CN (default), en, or none")
+    ap.add_argument("--translator", default="auto", choices=["auto", "google", "claude", "none"],
+                    help="auto = Claude if ANTHROPIC_API_KEY is set, otherwise free Google Translate")
+    ap.add_argument("--claude-model", default="claude-opus-5-5",
+                    help="Claude model for translation, e.g. claude-opus-5-5 (default) or claude-haiku-5-5 (much cheaper)")
     ap.add_argument("--lang", default="ru", help="spoken language: ru (default), uk, or auto")
     ap.add_argument("--model", default="auto", help="Whisper model: auto, large-v3-turbo, medium, small")
     ap.add_argument("--device", default="auto", choices=["auto", "cuda", "cpu"])

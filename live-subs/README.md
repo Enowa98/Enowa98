@@ -31,6 +31,20 @@ run.bat --list-devices     列出音频设备
 run.bat --help             所有设置
 ```
 
+## 翻译：免费 Google 还是 Claude
+
+- **默认：免费 Google 翻译。**请求太多时，Google 会暂时拒绝。程序会把几句合并成一次请求；被拒绝后，先改用 MyMemory（另一个免费翻译）顶 2 分钟，再试 Google。缺点是不懂游戏黑话和脏话。
+- **更好：Claude 翻译。**它懂俚语、骂人话和 Dota 术语，能结合前几句理解上下文，也会自动纠正一部分识别错误。需要付费的 API key，按用量计费。
+  1. 在 https://platform.claude.com 注册，充值，然后创建一个 API key。
+  2. 在 cmd 里运行下面这行（把 `你的key` 换成你自己的 key），然后**关掉 cmd 重新打开**：
+     ```
+     setx ANTHROPIC_API_KEY "你的key"
+     ```
+  3. 再运行 `run.bat`，状态栏会显示 `Claude`。
+  - 想更便宜：`run.bat --claude-model claude-haiku-5-5`。大约便宜 40 倍，翻译质量会差一些。
+  - 想临时改回 Google：`run.bat --translator google`
+  - **API key 不要发给任何人，也不要贴到聊天里。**
+
 ## Dota 2 里要注意
 
 - 字幕窗口要显示在游戏上面，Dota 必须用 **无边框窗口（Borderless Window）** 模式。设置位置：设置 → 视频 → 显示模式。如果用独占全屏，窗口会被游戏盖住。
