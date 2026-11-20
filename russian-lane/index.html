@@ -30,7 +30,7 @@ header.top{position:sticky;top:env(safe-area-inset-top,0px);z-index:5;background
 .brand{font-family:var(--display);font-weight:700;font-size:18px;letter-spacing:.01em;margin-right:auto;display:flex;align-items:baseline;gap:8px}
 .brand small{font-family:var(--body);font-weight:500;font-size:12px;color:var(--muted)}
 .sync{font-size:12px;color:var(--muted)}
-.vsel{background:var(--bg);border:1px solid var(--line);border-radius:6px;padding:2px 4px;font-size:12px}
+.vsel{max-width:170px;background:var(--bg);border:1px solid var(--line);border-radius:6px;padding:2px 4px;font-size:12px}
 nav.tabs{display:flex;gap:4px;overflow-x:auto;padding-bottom:8px;scrollbar-width:none}
 nav.tabs a{flex:0 0 auto;text-decoration:none;color:var(--muted);padding:7px 12px;border-radius:999px;font-weight:600;font-size:14px;display:flex;gap:6px;align-items:center}
 nav.tabs a span.ru{font-family:var(--display);font-weight:500;font-size:12px;opacity:.75}
@@ -158,7 +158,7 @@ textarea{min-height:150px;resize:vertical;font-family:var(--body)}
     <div class="bar">
       <div class="brand">Russian Lane <small>русский для доты и песен</small></div>
       <div class="sync" id="sync">Saved on this device</div>
-      <label class="sync" for="voiceSel">Voice <select id="voiceSel" class="vsel"><option value="auto">Auto</option><option value="browser">Device voice</option><option value="claude">Claude voice</option></select></label>
+      <label class="sync" for="voiceSel">Voice <select id="voiceSel" class="vsel"><option value="auto">Auto (best available)</option></select></label>
     </div>
     <nav class="tabs" aria-label="Sections">
       <a href="#alphabet" data-v="alphabet">Alphabet <span class="ru">Алфавит</span></a>
@@ -471,14 +471,24 @@ if(window.claude&&window.claude.use){
 // Voice choice: "auto" prefers a real Russian voice from the browser/system, then Claude's voice
 // only if it reports Russian support (otherwise it reads Cyrillic with an English accent).
 let voicePref="auto";try{voicePref=localStorage.getItem("russianLane.voice")||"auto"}catch(e){}
-const voiceSel=document.getElementById("voiceSel");voiceSel.value=voicePref;
-voiceSel.addEventListener("change",()=>{voicePref=voiceSel.value;try{localStorage.setItem("russianLane.voice",voicePref)}catch(e){};speak("привет")});
+const voiceSel=document.getElementById("voiceSel");
+function ruVoices(){try{return speechSynthesis.getVoices().filter(v=>v.lang&&/^ru/i.test(v.lang))}catch(e){return []}}
+// Neural "Natural"/"Online" voices (Edge) and Google voices (Chrome) sound far better than the old system voices.
+const voiceScore=v=>(/natural/i.test(v.name)?3:0)+(/online/i.test(v.name)?2:0)+(/google/i.test(v.name)?1:0);
+function fillVoices(){
+  const vs=ruVoices().sort((x,y)=>voiceScore(y)-voiceScore(x));
+  voiceSel.innerHTML=`<option value="auto">Auto (best available)</option>`+vs.map(v=>`<option value="v:${esc(v.name)}">${esc(v.name.replace(/^Microsoft /,"").replace(/ - Russian.*$/,""))}</option>`).join("")+`<option value="claude">Claude voice</option>`;
+  voiceSel.value=[...voiceSel.options].some(o=>o.value===voicePref)?voicePref:"auto";
+}
+fillVoices();
+try{speechSynthesis.addEventListener("voiceschanged",fillVoices)}catch(e){}
+voiceSel.addEventListener("change",()=>{voicePref=voiceSel.value;try{localStorage.setItem("russianLane.voice",voicePref)}catch(e){};speak("Привет! Давай играть.")});
 function browserVoice(lang){
   try{if(!("speechSynthesis" in window))return null;const p=lang.slice(0,2).toLowerCase();
     const vs=speechSynthesis.getVoices().filter(v=>v.lang&&v.lang.toLowerCase().replace("_","-").startsWith(p));
-    return vs.find(v=>/google|natural|online/i.test(v.name))||vs[0]||null}catch(e){return null}
+    if(voicePref.startsWith("v:")&&p==="ru"){const m=vs.find(v=>"v:"+v.name===voicePref);if(m)return m}
+    return vs.sort((x,y)=>voiceScore(y)-voiceScore(x))[0]||null}catch(e){return null}
 }
-try{speechSynthesis.getVoices();speechSynthesis.addEventListener("voiceschanged",()=>{})}catch(e){}
 const claudeSpeaks=lang=>!!(TTS&&!ttsOff&&Array.isArray(ttsLangs)&&ttsLangs.some(l=>String(l).toLowerCase().startsWith(lang.slice(0,2).toLowerCase())));
 function browserSpeak(text,lang){
   try{
@@ -503,10 +513,11 @@ function speak(text,lang){
     if(!claudeSpeaks(lang))toast("Claude's voice may not support Russian here. Switch Voice to Auto if it sounds English.");
     return claudeSpeak(text,lang);
   }
-  if(voicePref==="browser"||browserVoice(lang))return browserSpeak(text,lang);
+  if(voicePref.startsWith("v:")||browserVoice(lang))return browserSpeak(text,lang);
   if(claudeSpeaks(lang))return claudeSpeak(text,lang);
   browserSpeak(text,lang);
 }
+const forvo=w=>{w=String(w).replace(/[.?!…]/g,"").trim();return w&&!/\s/.test(w)?`<a class="btn small ghost" style="text-decoration:none" target="_blank" rel="noopener" href="https://forvo.com/word/${encodeURIComponent(w)}/#ru" title="Hear real native speakers">Native ↗</a>`:""};
 const spkBtn=(text,lang)=>`<button class="spk" data-say="${esc(text)}" ${lang?`data-lang="${lang}"`:""} aria-label="Listen">${SPK}</button>`;
 document.addEventListener("click",e=>{const b=e.target.closest("[data-say]");if(b){e.preventDefault();speak(b.dataset.say,b.dataset.lang)}});
 
@@ -582,7 +593,7 @@ function renderPhrases(){
     const id="D:"+p[0];const tag=p[2]==="rude"?`<span class="tag ${RUDE_TAG[p[4]][0]}">${RUDE_TAG[p[4]][1]}</span>`:"";
     return `<div class="pitem"><div class="meta"><div class="row" style="gap:10px"><span class="ru">${esc(p[0])}</span><span class="tr">${esc(translit(p[0]))}</span>${tag}</div>
       <div class="en">${esc(p[1])}</div>${p[3]?`<div class="note">${esc(p[3])}</div>`:""}</div>
-      <div class="acts">${spkBtn(p[0].replace("...",""))}${inDeck(id)?`<span class="added">In deck</span>`:`<button class="btn small" data-add="${esc(id)}">+ Deck</button>`}</div></div>`}).join("");
+      <div class="acts">${forvo(p[0])}${spkBtn(p[0].replace("...",""))}${inDeck(id)?`<span class="added">In deck</span>`:`<button class="btn small" data-add="${esc(id)}">+ Deck</button>`}</div></div>`}).join("");
   const ab=$("#addCat");if(ab)ab.disabled=list.every(p=>inDeck("D:"+p[0]));
 }
 $("#catChips").addEventListener("click",e=>{
@@ -673,7 +684,7 @@ $("#lyOut").addEventListener("click",e=>{
   speak(word,lyLang);
   const exists=state.words.some(x=>x.ru===word);
   $("#wordBox").hidden=false;
-  $("#wordBox").innerHTML=`<div class="row" style="justify-content:space-between"><div class="row"><span class="ru" style="font-size:22px">${esc(info&&info.base&&clean(info.base)!==word?word:word)}</span><span class="tr">${esc(translit(word))}</span>${spkBtn(word,lyLang==="uk-UA"?"uk-UA":"")}</div><button class="btn small ghost" id="wbClose" aria-label="Close">✕</button></div>
+  $("#wordBox").innerHTML=`<div class="row" style="justify-content:space-between"><div class="row"><span class="ru" style="font-size:22px">${esc(info&&info.base&&clean(info.base)!==word?word:word)}</span><span class="tr">${esc(translit(word))}</span>${spkBtn(word,lyLang==="uk-UA"?"uk-UA":"")}${forvo(word)}</div><button class="btn small ghost" id="wbClose" aria-label="Close">✕</button></div>
    ${info&&info.base&&clean(info.base)!==word?`<div class="small muted">Dictionary form: <span class="ru">${esc(info.base)}</span></div>`:""}
    <input type="text" id="wbMeaning" placeholder="Meaning (type your own if empty)" value="${esc(info?info.en:"")}">
    <div class="row">${exists?`<span class="added">Already in my words</span>`:`<button class="btn small primary" id="wbSave">Save to my words</button>`}</div>`;
