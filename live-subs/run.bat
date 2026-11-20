@@ -1,10 +1,9 @@
 @echo off
 cd /d "%~dp0"
-if not exist .venv (
+if not exist .venv\Scripts\python.exe (
   echo Run install.bat first.
   pause
   exit /b 1
 )
-call .venv\Scripts\activate.bat
-python live_subs.py %*
+.venv\Scripts\python.exe live_subs.py %*
 pause

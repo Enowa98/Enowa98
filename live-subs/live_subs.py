@@ -496,7 +496,7 @@ def worker(args, ui_q, paused, stop):
         threading.Thread(target=capture_loop, args=(args.device_index, audio_q, paused, stop, status),
                          daemon=True).start()
     except Exception as e:  # noqa: BLE001
-        ui_q.put(("fatal", f"Error: {e}", None))
+        ui_q.put(("fatal", f"Error: {e}  (details: logs\\live-subs.log, or start run.bat)", None))
         print(f"Error: {e}", file=sys.stderr)
         return
 
@@ -530,6 +530,24 @@ def worker(args, ui_q, paused, stop):
         tr_q.put((line_id, text, datetime.datetime.now().strftime("%H:%M:%S")))
 
 
+def single_instance():
+    """Only one copy may run at a time (double-clicking the shortcut twice would double the cost)."""
+    if os.name != "nt":
+        return True
+    import ctypes
+    global _MUTEX
+    _MUTEX = ctypes.windll.kernel32.CreateMutexW(None, False, "LiveSubs.SingleInstance")
+    if ctypes.windll.kernel32.GetLastError() == 183:          # ERROR_ALREADY_EXISTS
+        import tkinter as tk
+        from tkinter import messagebox
+        root = tk.Tk()
+        root.withdraw()
+        messagebox.showinfo("Live Subs", "Live Subs is already running.\nClose it with the ✕ on the subtitle window.")
+        root.destroy()
+        return False
+    return True
+
+
 def main():
     ap = argparse.ArgumentParser(description="Live Russian subtitles for anything your PC plays.")
     ap.add_argument("--target", default="zh-CN", help="translation language: zh-CN (default), en, or none")
@@ -555,6 +573,14 @@ def main():
         list_loopback_devices()
         return
     os.chdir(os.path.dirname(os.path.abspath(__file__)))
+    if sys.stdout is None or sys.stderr is None:
+        # Started without a console window (desktop shortcut / pythonw): write output to a log file.
+        os.makedirs("logs", exist_ok=True)
+        log = open(os.path.join("logs", "live-subs.log"), "w", encoding="utf-8", buffering=1)
+        sys.stdout = sys.stderr = log
+        print(f"Live Subs started {datetime.datetime.now():%Y-%m-%d %H:%M:%S}")
+    if not single_instance():
+        return
     ui_q, paused, stop = queue.Queue(), threading.Event(), threading.Event()
     threading.Thread(target=worker, args=(args, ui_q, paused, stop), daemon=True).start()
     run_window(args, ui_q, paused, stop)
