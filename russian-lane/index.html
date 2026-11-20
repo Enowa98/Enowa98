@@ -1,0 +1,754 @@
+<title>Russian Lane</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Unbounded:wght@500;700&family=Golos+Text:wght@400;500;600&family=JetBrains+Mono:wght@400;600&display=swap">
+<style>
+/* Layout: a sticky tab bar over one working column; Cyrillic set large in the display face is the hero of every view. */
+:root{
+  --bg:#ECEEF3; --surface:#FFFFFF; --sunk:#E2E5EC; --ink:#151922; --muted:#596173; --line:#D3D7E0;
+  --accent:#B83A27; --accent-ink:#FFFFFF; --good:#26734F; --warn:#9A6A00; --bad:#B83A27;
+  --display:"Unbounded","Golos Text",system-ui,sans-serif;
+  --body:"Golos Text",system-ui,-apple-system,"Segoe UI",sans-serif;
+  --mono:"JetBrains Mono",ui-monospace,Consolas,monospace;
+  --r:10px;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#11141A; --surface:#1A1E27; --sunk:#232834; --ink:#E7E9EF; --muted:#959CAC; --line:#2C3240;
+  --accent:#E3664F; --accent-ink:#1A0A06; --good:#56B98C; --warn:#D9A93A; --bad:#E3664F; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#11141A; --surface:#1A1E27; --sunk:#232834; --ink:#E7E9EF; --muted:#959CAC; --line:#2C3240;
+  --accent:#E3664F; --accent-ink:#1A0A06; --good:#56B98C; --warn:#D9A93A; --bad:#E3664F; color-scheme:dark}
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+body{background:var(--bg);color:var(--ink);font-family:var(--body);font-size:16px;line-height:1.5}
+body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset-top,0px);z-index:10;background:var(--surface)}
+button,input,textarea,select{font:inherit;color:inherit}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.wrap{max-width:860px;margin:0 auto;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+header.top{position:sticky;top:env(safe-area-inset-top,0px);z-index:5;background:var(--surface);border-bottom:1px solid var(--line)}
+.bar{display:flex;align-items:center;gap:12px;padding-block:10px;flex-wrap:wrap}
+.brand{font-family:var(--display);font-weight:700;font-size:18px;letter-spacing:.01em;margin-right:auto;display:flex;align-items:baseline;gap:8px}
+.brand small{font-family:var(--body);font-weight:500;font-size:12px;color:var(--muted)}
+.sync{font-size:12px;color:var(--muted)}
+nav.tabs{display:flex;gap:4px;overflow-x:auto;padding-bottom:8px;scrollbar-width:none}
+nav.tabs a{flex:0 0 auto;text-decoration:none;color:var(--muted);padding:7px 12px;border-radius:999px;font-weight:600;font-size:14px;display:flex;gap:6px;align-items:center}
+nav.tabs a span.ru{font-family:var(--display);font-weight:500;font-size:12px;opacity:.75}
+nav.tabs a[aria-current="page"]{background:var(--ink);color:var(--bg)}
+.badge{background:var(--accent);color:var(--accent-ink);border-radius:999px;font-size:11px;padding:0 6px;min-width:18px;text-align:center}
+main{padding-block:20px 60px}
+section.view{display:grid;gap:22px}
+h1{font-family:var(--display);font-weight:700;font-size:clamp(22px,4.5vw,30px);line-height:1.2;margin:0;text-wrap:balance}
+h2{font-family:var(--display);font-weight:500;font-size:17px;margin:0 0 4px;text-wrap:balance}
+p{margin:0}
+.lede{color:var(--muted);max-width:62ch}
+.panel{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:16px;display:grid;gap:12px;min-width:0}
+.row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.btn{border:1px solid var(--line);background:var(--surface);border-radius:8px;padding:8px 14px;font-weight:600;cursor:pointer;font-size:14px}
+.btn:hover{border-color:var(--muted)}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
+.btn.ghost{background:transparent}
+.btn.small{padding:4px 10px;font-size:13px}
+.btn[disabled]{opacity:.5;cursor:default}
+.chip{border:1px solid var(--line);background:transparent;border-radius:999px;padding:5px 12px;font-size:13px;font-weight:600;cursor:pointer;color:var(--muted)}
+.chip[aria-pressed="true"]{background:var(--ink);color:var(--bg);border-color:var(--ink)}
+.spk{border:none;background:var(--sunk);border-radius:999px;width:32px;height:32px;display:inline-grid;place-items:center;cursor:pointer;flex:0 0 auto}
+.spk svg{width:16px;height:16px;fill:var(--ink)}
+.ru{font-family:var(--display);font-weight:500}
+.tr{font-family:var(--mono);font-size:13px;color:var(--muted)}
+.muted{color:var(--muted)}
+.small{font-size:13px}
+.label{font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);font-weight:600}
+input[type=text],textarea{width:100%;background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:10px 12px}
+textarea{min-height:150px;resize:vertical;font-family:var(--body)}
+.toast{max-width:calc(100% - 32px);text-align:center;position:fixed;left:50%;bottom:calc(20px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:var(--ink);color:var(--bg);padding:8px 16px;border-radius:999px;font-size:14px;z-index:20;opacity:0;transition:opacity .2s;pointer-events:none}
+.toast.on{opacity:1}
+
+/* Alphabet */
+.groups{display:grid;gap:18px}
+.lgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(74px,1fr));gap:8px}
+.letter{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:10px 6px 8px;text-align:center;cursor:pointer;display:grid;gap:2px}
+.letter:hover{border-color:var(--accent)}
+.letter b{font-family:var(--display);font-weight:500;font-size:26px;line-height:1.1}
+.letter span{font-family:var(--mono);font-size:12px;color:var(--muted)}
+.letter.ff b{color:var(--accent)}
+.detail{display:grid;grid-template-columns:auto 1fr;gap:16px;align-items:center}
+.detail .big{font-family:var(--display);font-weight:700;font-size:64px;line-height:1;min-width:1.4em;text-align:center}
+.quizq{font-family:var(--display);font-weight:700;font-size:72px;text-align:center;line-height:1.1}
+.opts{display:grid;grid-template-columns:repeat(2,1fr);gap:8px}
+.opt{padding:12px;border-radius:8px;border:1px solid var(--line);background:var(--bg);font-family:var(--mono);font-size:16px;cursor:pointer}
+.opt.right{border-color:var(--good);color:var(--good);font-weight:600}
+.opt.wrong{border-color:var(--bad);color:var(--bad)}
+.kb-scroll{overflow-x:auto}
+.kb{display:grid;gap:5px;min-width:520px}
+.kb .krow{display:flex;gap:5px}
+.kb .krow:nth-child(2){padding-left:14px}.kb .krow:nth-child(3){padding-left:28px}.kb .krow:nth-child(4){padding-left:48px}
+.key{width:38px;height:44px;border-radius:6px;background:var(--bg);border:1px solid var(--line);position:relative;cursor:pointer;padding:0}
+.key b{font-family:var(--display);font-weight:500;font-size:17px;position:absolute;left:6px;top:4px}
+.key i{font-style:normal;font-family:var(--mono);font-size:10px;color:var(--muted);position:absolute;right:5px;bottom:3px}
+.key.hit{border-color:var(--accent);background:var(--sunk)}
+
+/* Phrase list */
+.plist{display:grid;gap:0;border:1px solid var(--line);border-radius:var(--r);background:var(--surface);overflow:hidden}
+.pitem{display:grid;grid-template-columns:1fr auto;gap:4px 12px;padding:12px 14px;border-top:1px solid var(--line);align-items:center}
+.pitem:first-child{border-top:none}
+.pitem .ru{font-size:18px}
+.pitem .meta{min-width:0;display:grid;gap:2px}
+.pitem .en{font-size:15px}
+.pitem .note{font-size:13px;color:var(--muted)}
+.pitem .acts{display:flex;gap:6px;align-items:center}
+.tag{font-size:11px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;padding:2px 7px;border-radius:4px;border:1px solid currentColor}
+.tag.ok{color:var(--good)}.tag.ins{color:var(--warn)}.tag.sw{color:var(--bad)}
+.added{color:var(--good);font-size:13px;font-weight:600}
+
+/* Chat helper / lyrics */
+.result{display:grid;gap:10px;background:var(--bg);border-radius:8px;padding:14px;min-width:0}
+.result .big{font-family:var(--display);font-size:22px;font-weight:500;overflow-wrap:anywhere}
+.parts{display:flex;flex-wrap:wrap;gap:6px}
+.part{background:var(--surface);border:1px solid var(--line);border-radius:6px;padding:4px 8px;font-size:13px}
+.part b{font-family:var(--display);font-weight:500}
+.lines{display:grid;gap:4px}
+.line{display:grid;grid-template-columns:auto 1fr;gap:4px 10px;padding:10px 0;border-top:1px solid var(--line)}
+.line:first-child{border-top:none}
+.line .ruline{font-family:var(--display);font-weight:500;font-size:18px;line-height:1.5;overflow-wrap:anywhere}
+.w{cursor:pointer;border-radius:3px;padding:0 1px}
+.w:hover,.w.sel{background:var(--sunk);box-shadow:inset 0 -2px 0 var(--accent)}
+.line .en{font-size:15px}
+.wordbox{position:sticky;bottom:calc(10px + env(safe-area-inset-bottom,0px));background:var(--surface);border:1px solid var(--accent);border-radius:var(--r);padding:12px 14px;display:grid;gap:8px;box-shadow:0 8px 30px rgba(0,0,0,.18)}
+.songs{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:8px}
+.song{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:12px;display:grid;gap:4px;min-width:0}
+.song .ru{font-size:16px;overflow-wrap:anywhere}
+.song .en{font-size:13px;color:var(--muted)}
+.song .by{font-size:12px;color:var(--muted)}
+.song .row{margin-top:4px}
+.song .reveal{filter:blur(5px);cursor:pointer;transition:filter .15s}
+.song .reveal.shown{filter:none}
+
+/* Review */
+.card{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:28px 18px;display:grid;gap:14px;text-align:center;min-height:300px;align-content:center}
+.card .front{font-family:var(--display);font-weight:700;font-size:clamp(30px,8vw,52px);line-height:1.15;overflow-wrap:anywhere}
+.card .front.small{font-size:clamp(22px,5.5vw,34px)}
+.card .back{display:grid;gap:6px}
+.card .back .en{font-size:20px;font-weight:600}
+.grades{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.grades .btn{padding:12px 8px}
+.g-again{color:var(--bad)}.g-good{color:var(--good)}
+.stats{display:flex;gap:18px;flex-wrap:wrap;font-variant-numeric:tabular-nums}
+.stats div{display:grid}
+.stats b{font-family:var(--display);font-size:22px;font-weight:700}
+.stats span{font-size:12px;color:var(--muted)}
+.typein{font-family:var(--display);font-size:20px;text-align:center}
+.verdict{font-weight:600}
+.verdict.ok{color:var(--good)}.verdict.no{color:var(--bad)}
+@media (max-width:520px){
+  .detail .big{font-size:48px}
+  .quizq{font-size:60px}
+  .pitem{grid-template-columns:1fr}
+  .pitem .acts{justify-content:flex-start}
+  .brand small,nav.tabs a span.ru{display:none}
+  .bar{padding-block:8px 4px}
+  nav.tabs{display:grid;grid-template-columns:repeat(4,1fr)}
+  nav.tabs a{justify-content:center;padding:7px 4px;font-size:13px}
+}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+
+<header class="top">
+  <div class="wrap">
+    <div class="bar">
+      <div class="brand">Russian Lane <small>русский для доты и песен</small></div>
+      <div class="sync" id="sync">Saved on this device</div>
+    </div>
+    <nav class="tabs" aria-label="Sections">
+      <a href="#alphabet" data-v="alphabet">Alphabet <span class="ru">Алфавит</span></a>
+      <a href="#dota" data-v="dota">Dota chat <span class="ru">Чат</span></a>
+      <a href="#songs" data-v="songs">Songs <span class="ru">Песни</span></a>
+      <a href="#review" data-v="review">Review <span class="ru">Повтор</span> <span class="badge" id="dueBadge">0</span></a>
+    </nav>
+  </div>
+</header>
+
+<main class="wrap">
+  <!-- ALPHABET -->
+  <section class="view" id="v-alphabet">
+    <div>
+      <h1>33 letters. About a third you already know.</h1>
+      <p class="lede">Tap a letter to hear it. Red letters are false friends: they look like English letters but make a different sound. Learn those first.</p>
+    </div>
+    <div class="panel" id="letterDetail"></div>
+    <div class="groups" id="letterGroups"></div>
+    <div class="panel">
+      <h2>Quick quiz</h2>
+      <p class="muted small">Pick the sound. Every answer also counts toward your review deck.</p>
+      <div class="row" id="quizScope">
+        <button class="chip" aria-pressed="true" data-s="ff">False friends</button>
+        <button class="chip" aria-pressed="false" data-s="new">New shapes</button>
+        <button class="chip" aria-pressed="false" data-s="all">All letters</button>
+      </div>
+      <div class="quizq" id="quizQ"></div>
+      <div class="opts" id="quizOpts"></div>
+      <div class="row"><span class="small muted" id="quizScore">0 / 0</span></div>
+    </div>
+    <div class="panel">
+      <h2>Your Russian keyboard</h2>
+      <p class="muted small">On Windows, switch layouts with <b>Win + Space</b> or <b>Alt + Shift</b>. The small grey letter shows which English key it sits on. Tap a key to hear it, or type here with the Russian layout on and watch the keys light up.</p>
+      <input type="text" id="kbTry" placeholder="Try typing: привет" autocomplete="off" lang="ru">
+      <div class="kb-scroll"><div class="kb" id="kb"></div></div>
+    </div>
+    <div class="panel">
+      <h2>Two of your songs are Ukrainian</h2>
+      <p class="small">«Срібний пульсар» and «Твій промінь» by SadSvit are in Ukrainian, a different language from Russian. Most letters are the same, but Ukrainian adds <span class="ru">і ї є ґ</span> and drops <span class="ru">ы э ъ ё</span>. If you see <span class="ru">і</span> in a title, it isn't Russian.</p>
+    </div>
+  </section>
+
+  <!-- DOTA -->
+  <section class="view" id="v-dota" hidden>
+    <div>
+      <h1>What they type in your games</h1>
+      <p class="lede">Real chat Russian is short, lowercase and full of English loanwords spelled in Cyrillic (<span class="ru">керри</span> = carry). Add phrases to your deck, then practice them in Review.</p>
+    </div>
+    <div class="panel" id="chatHelper">
+      <h2>Chat decoder</h2>
+      <p class="muted small">Paste something a teammate wrote, or type what you want to say in English. Claude explains it or writes it the way players actually type.</p>
+      <div class="row" style="flex-wrap:nowrap">
+        <input type="text" id="chatIn" placeholder="e.g. «мид мисс, осторожно» or «I'll buy wards»" autocomplete="off">
+        <button class="btn primary" id="chatGo">Explain</button>
+      </div>
+      <div id="chatOut"></div>
+    </div>
+    <div class="row" id="catChips"></div>
+    <div class="plist" id="plist"></div>
+  </section>
+
+  <!-- SONGS -->
+  <section class="view" id="v-songs" hidden>
+    <div>
+      <h1>Learn through your playlist</h1>
+      <p class="lede">Start by reading the song titles from your list. Then paste a song's lyrics below to get them line by line with pronunciation, a translation, and words you can save.</p>
+    </div>
+    <div class="panel" id="lyricsPanel">
+      <h2>Lyrics breakdown</h2>
+      <p class="muted small">Copy the lyrics from a lyrics site or the 词 button in your music app and paste them here. Lyrics stay on this device only.</p>
+      <input type="text" id="lyTitle" placeholder="Song title (optional)" autocomplete="off">
+      <textarea id="lyText" placeholder="Paste lyrics here…" lang="ru"></textarea>
+      <div class="row">
+        <button class="btn" id="lyBreak">Break down</button>
+        <button class="btn primary" id="lyAi">Translate with Claude</button>
+        <button class="btn ghost small" id="lySample">Load example (folk song «Калинка»)</button>
+      </div>
+      <div class="small muted" id="lyStatus"></div>
+      <div class="lines" id="lyOut"></div>
+      <div class="wordbox" id="wordBox" hidden></div>
+    </div>
+    <div>
+      <h2>Your songs</h2>
+      <p class="muted small" style="margin-bottom:10px">Try to read each title out loud, then tap the blurred line to check the meaning.</p>
+      <div class="row" style="margin-bottom:10px"><button class="btn small" id="addAllSongs">Add all titles to my deck</button></div>
+      <div class="songs" id="songList"></div>
+    </div>
+  </section>
+
+  <!-- REVIEW -->
+  <section class="view" id="v-review" hidden>
+    <div>
+      <h1>Today's review</h1>
+      <p class="lede">Ten minutes a day works better than one long session. Cards you get right come back later. Cards you miss come back soon.</p>
+    </div>
+    <div class="stats" id="stats"></div>
+    <div class="row" id="deckChips"></div>
+    <div class="row">
+      <span class="label">Mode</span>
+      <button class="chip" aria-pressed="true" data-m="read">Read: Russian → meaning</button>
+      <button class="chip" aria-pressed="false" data-m="type">Type: meaning → Russian</button>
+    </div>
+    <div id="cardArea"></div>
+  </section>
+</main>
+<div class="toast" id="toast"></div>
+
+<script>
+(function(){
+"use strict";
+const $=s=>document.querySelector(s), $$=s=>[...document.querySelectorAll(s)];
+const esc=s=>String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const SPK='<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3A4.5 4.5 0 0 0 14 8v8a4.5 4.5 0 0 0 2.5-4zM14 3.2v2.1a7 7 0 0 1 0 13.4v2.1a9 9 0 0 0 0-17.6z"/></svg>';
+function toast(m){const t=$("#toast");t.textContent=m;t.classList.add("on");clearTimeout(toast.t);toast.t=setTimeout(()=>t.classList.remove("on"),1800)}
+
+/* ---------- Transliteration ---------- */
+const TR={а:"a",б:"b",в:"v",г:"g",д:"d",ё:"yo",ж:"zh",з:"z",и:"i",й:"y",к:"k",л:"l",м:"m",н:"n",о:"o",п:"p",р:"r",с:"s",т:"t",у:"u",ф:"f",х:"kh",ц:"ts",ч:"ch",ш:"sh",щ:"shch",ъ:"",ы:"y",ь:"'",э:"e",ю:"yu",я:"ya",і:"i",ї:"yi",є:"ye",ґ:"g"};
+const VOW="аеёиоуыэюяіїєьъ";
+function translit(s){
+  let out="";const str=String(s);
+  for(let i=0;i<str.length;i++){
+    const ch=str[i],lo=ch.toLowerCase();
+    if(lo==="\u0301"){continue}
+    let r;
+    if(lo==="е"){const p=(str[i-1]||" ").toLowerCase();r=(VOW.includes(p)||!/[а-яёіїєґ]/.test(p))?"ye":"e"}
+    else if(lo in TR) r=TR[lo]; else {out+=ch;continue}
+    if(ch!==lo&&r) r=r[0].toUpperCase()+r.slice(1);
+    out+=r;
+  }
+  return out;
+}
+
+/* ---------- Data ---------- */
+// [upper, lower, sound, group, hint, example, example meaning]
+const LETTERS=[
+["А","а","a","same","a as in father","мана","mana"],
+["Б","б","b","new","b as in bat","бкб","BKB"],
+["В","в","v","ff","Looks like B, sounds like v","вышка","tower"],
+["Г","г","g","new","g as in go","го","let's go"],
+["Д","д","d","new","d as in dog","да","yes"],
+["Е","е","ye","ff","Looks like E, sounds like ye in yes","нет","no"],
+["Ё","ё","yo","new","yo as in yogurt. Always stressed","всё","that's it"],
+["Ж","ж","zh","new","s in pleasure","жди","wait"],
+["З","з","z","new","z as in zoo. Looks like a 3","знаю","I know"],
+["И","и","i","new","ee as in see. Looks like a backwards N","иди","go"],
+["Й","й","y","new","Short y as in boy","мой","my"],
+["К","к","k","same","k as in kit","керри","carry"],
+["Л","л","l","new","l as in lamp","лес","jungle"],
+["М","м","m","same","m as in map","мид","mid"],
+["Н","н","n","ff","Looks like H, sounds like n","нет","no"],
+["О","о","o","same","o as in more (sounds like a when not stressed)","топ","top lane"],
+["П","п","p","new","p as in pen","пуш","push"],
+["Р","р","r","ff","Looks like P, sounds like a rolled r","руна","rune"],
+["С","с","s","ff","Looks like C, sounds like s","спс","thanks"],
+["Т","т","t","same","t as in top","тп","TP scroll"],
+["У","у","u","ff","Looks like y, sounds like oo in boot","ульта","ultimate"],
+["Ф","ф","f","new","f as in fun","фарм","farm"],
+["Х","х","kh","ff","Looks like X, sounds like ch in Bach","хп","HP"],
+["Ц","ц","ts","new","ts as in cats","цель","target"],
+["Ч","ч","ch","new","ch as in chat","чел","dude"],
+["Ш","ш","sh","new","sh as in ship","шмот","gear"],
+["Щ","щ","shch","new","A long, soft sh","щас","in a sec"],
+["Ъ","ъ","—","sign","Hard sign: silent, adds a small break","съел","ate"],
+["Ы","ы","y","new","Like i in bit, with the tongue pulled back","мы","we"],
+["Ь","ь","'","sign","Soft sign: silent, softens the letter before it","ульта","ultimate"],
+["Э","э","e","new","e as in met","это","this"],
+["Ю","ю","yu","new","yu as in you","сюда","over here"],
+["Я","я","ya","new","ya as in yard. Also the word for I","я","I"]
+];
+const GROUPS=[["same","Look and sound like English"],["ff","False friends"],["new","New shapes"],["sign","Signs (no sound of their own)"]];
+
+const CATS=[["basics","Basics"],["abbr","Shorthand"],["map","Map"],["roles","Roles & picks"],["items","Items"],["calls","Fight calls"],["team","Team talk"],["me","About you"],["rude","Recognize only"]];
+// [ru, en, cat, note, level] level: 0 ok, 1 insult, 2 strong swear (rude cat only)
+const PHRASES=[
+["привет","hi","basics",""],["да","yes","basics",""],["нет","no","basics",""],["ок","ok","basics",""],
+["спасибо","thank you","basics","Full form of спс."],["пожалуйста","please / you're welcome","basics",""],
+["извини","sorry","basics",""],["понял","got it","basics","A woman would write поняла."],
+["давай","come on / let's do it","basics","Very common. давай давай = hurry up."],["всё","that's it / done / all","basics",""],
+["гг","gg","abbr","Same as English, typed with the Russian layout on."],["вп","wp (well played)","abbr",""],
+["спс","thanks","abbr","Short for спасибо."],["пж","please","abbr","Short for пожалуйста. Also плз."],
+["нз","you're welcome","abbr","Short for не за что, \"it's nothing\"."],["мб","maybe","abbr","Short for может быть."],
+["кст","by the way","abbr","Short for кстати. Also кста."],["хз","no idea","abbr","Short for хрен знает. A bit crude but everyone uses it."],
+["щас","in a sec / right now","abbr","Casual spelling of сейчас."],["норм","fine, ok","abbr","Short for нормально."],
+["лан","ok, fine","abbr","Short for ладно."],["пон","got it","abbr","Short for понял / понятно."],
+["сорян","sorry","abbr","Casual. Also сори."],["изи","easy","abbr","From English. Can sound cocky."],
+["го","let's go","abbr","From English \"go\"."],["ору","lol (literally \"I'm screaming\")","abbr",""],
+["имба","overpowered","abbr","From \"imbalanced\"."],["кд","cooldown","abbr","ульта на кд = ult is on cooldown."],
+["хп","HP","abbr",""],["бб","buyback","abbr","Can also mean bye-bye."],["тп","TP scroll","abbr","тпшусь = I'm teleporting."],
+["мид","mid lane","map",""],["топ","top lane","map",""],["бот","bottom lane","map",""],
+["лес","jungle (literally \"forest\")","map",""],["вышка","tower","map","Also башня. т1, т2, т3 = tier 1, 2, 3 tower."],
+["трон","Ancient (literally \"throne\")","map",""],["рошан","Roshan","map","Usually just рош."],
+["руна","rune","map",""],["крипы","creeps","map",""],["фонтан","fountain","map",""],
+["хайграунд","high ground","map","Also хг."],["мисс","missing (enemy left the lane)","map","мисс мид = mid is missing."],
+["фарм","farm","map","фармить = to farm."],
+["керри","carry","roles",""],["кор","core","roles",""],["мидер","mid player","roles",""],
+["хардлайнер","offlaner","roles","Russian players call the offlane хардлайн, or just хард."],
+["саппорт","support","roles","Short: сап."],["пятёрка","position 5","roles","четвёрка = position 4. я пятёрка = I'm pos 5."],
+["пик","pick","roles","контрпик = counterpick."],["лесник","jungler","roles",""],
+["бкб","BKB","items",""],["блинк","Blink Dagger","items","Also даггер."],["варды","wards","items",""],
+["сентри","sentry wards","items",""],["дасты","dust","items",""],["смок","Smoke of Deceit","items","смок? = smoke?"],
+["кура","courier","items","Short for курьер."],["аганим","Aghanim's Scepter","items","Short: аган."],
+["тапки","boots (literally \"slippers\")","items",""],["шмот","items, gear","items",""],["байбек","buyback","items",""],
+["отходим","retreat, back off","calls",""],["назад","back","calls",""],["жди","wait","calls","To the whole team: ждите."],
+["стой","stop, hold on","calls",""],["иду","coming, on my way","calls",""],["помогите","help!","calls","To one person: помоги."],
+["все сюда","everyone over here","calls","сюда = to here."],["фокус","focus (a target)","calls","фокус лину = focus Lina."],
+["не лезь","don't go in","calls","Literally \"don't climb in\"."],["осторожно","careful","calls",""],
+["у меня нет маны","I have no mana","calls",""],["у него бкб","he has BKB","calls",""],["он без бкб","he has no BKB","calls",""],
+["го рош","let's do Roshan","calls",""],["пушим мид","let's push mid","calls",""],["дефаем","defend!","calls","From English \"defend\"."],
+["где ты?","where are you?","calls",""],
+["кто мид?","who's mid?","team",""],["я мид","I'm mid","team",""],["можно мид?","can I go mid?","team","Polite way to ask."],
+["я сап","I'll support","team",""],["купи варды","buy wards","team",""],["ставь варды","place wards","team",""],
+["не фидь","stop feeding","team",""],["тащи","carry us!","team","тащить = to carry a game."],
+["красава","nice one!","team","Short for красавчик."],["ну ты зверь","you're a beast","team",""],
+["удачи","good luck","team",""],["гл хф","gl hf","team",""],["ребят","guys","team","Casual form of ребята."],["чел","dude","team",""],
+["я плохо говорю по-русски","I speak Russian badly","me",""],["я учу русский","I'm learning Russian","me",""],
+["можно по-английски?","can we use English?","me",""],["не понимаю","I don't understand","me",""],
+["повтори","say that again","me",""],["что значит ...?","what does ... mean?","me",""],["я из ...","I'm from ...","me","я из Китая = I'm from China."],
+["блин","damn (mild)","rude","Fine to use. Like \"dang\".",0],["капец","damn, that's crazy","rude","Mild. Fine to use.",0],
+["жесть","brutal, insane","rude","Fine to use.",0],["нуб","noob","rude","",1],
+["рак","bad player (literally \"crab\" or \"cancer\")","rude","раки = bad players.",1],["дно","trash player (literally \"the bottom\")","rude","",1],
+["руинер","game ruiner","rude","",1],["репорт","report","rude","Usually a threat: репорт мид.",1],
+["бля","f***","rude","Used as filler, like \"like\" in English. Recognize it, don't copy it.",2],
+["сука","b****","rude","",2],["пиздец","f***ed up, total disaster","rude","",2],["иди нахуй","f*** off","rude","Very strong.",2],
+["твою мать","\"your mother…\" (start of a curse)","rude","Insults about someone's mother are taken seriously.",2]
+];
+const RUDE_TAG=[["ok","OK to use"],["ins","Insult"],["sw","Strong swear"]];
+
+// [ru, en, artist, lang]
+const SONGS=[
+["Дорогой длинною","Along the long road","Oleg Pogudin / Vitas"],["Остаться здесь","To stay here","breskina"],
+["Якоря","Anchors","Любэ"],["Срібний пульсар","Silver pulsar","SadSvit","uk"],["Берёзы","Birches","Любэ"],
+["Муси-пуси","Musi-pusi (baby talk)","Катя Лель"],["В последний раз","For the last time","Весёлые ребята"],
+["Я знаю твой телефон","I know your phone number","Mix"],["Позови меня тихо по имени","Call me quietly by my name","Любэ"],
+["Не Бруклин","Not Brooklyn","MOT"],["Твоего балкона свет","The light of your balcony","Перемотка"],
+["Сны","Dreams","ANAIT"],["Смотрю в глаза","I look into (your) eyes","Где Фантом?"],["Встречная","Oncoming","Перемотка"],
+["Кто я?","Who am I?","metaego"],["С тобой","With you","Nurlcko"],["Тёмная ночь","Dark night","Марк Бернес"],
+["Катюша","Katyusha (a girl's name)","Георгий Виноградов"],["Снегопад","Snowfall","MOT"],["Приятные сны","Sweet dreams","corn wave"],
+["Качалка","The gym","Серега Пират"],["Город","City","DAKOOKA"],["Не хочу повторять","I don't want to repeat","corn wave"],
+["Иду за тобой","I'm following you","Три дня дождя"],["Ненавижу быть собой","I hate being myself","Три дня дождя"],
+["Отпускай","Let go","Три дня дождя"],["Не виноваты планеты","The planets aren't to blame","Три дня дождя"],
+["Подозрительно","Suspicious","Три дня дождя"],["Осень и алкоголь","Autumn and alcohol","Три дня дождя"],
+["Прогулка","A walk","Три дня дождя"],["Безразличие","Indifference","Три дня дождя"],["Слабый человек","A weak person","Три дня дождя"],
+["Малышка рок-н-ролл","Rock-and-roll baby","Три дня дождя"],["Вода","Water","Три дня дождя / МУККА"],
+["Когда ты откроешь глаза","When you open your eyes","Три дня дождя"],["Такси и полиция","Taxi and police","опека"],
+["Тебя нет","You're not here","Ssshhhiiittt!"],["Ты не верь слезам","Don't believe the tears","Chernikovskaya Hata"],
+["Белая ночь","White night","Chernikovskaya Hata"],["Главный герой","The main character","Сова"],["Манго нектар","Mango nectar","corn wave"],
+["Дождь","Rain","Ваня Дмитриенко"],["Открытка","Postcard","Ваня Дмитриенко"],["Цветаева","Tsvetaeva (a famous poet)","Ваня Дмитриенко"],
+["Венера-Юпитер","Venus–Jupiter","Ваня Дмитриенко"],["Всё не так","Everything's wrong","Ваня Дмитриенко"],
+["Напалм","Napalm","Ваня Дмитриенко"],["Твій промінь","Your ray of light","SadSvit","uk"]
+];
+// Public-domain folk song (I. Larionov, 1860)
+const SAMPLE_LYRICS=`Калинка, калинка, калинка моя!
+В саду ягода малинка, малинка моя!
+Ах, под сосною, под зелёною,
+Спать положите вы меня!`;
+
+/* ---------- Cards ---------- */
+const CARDS={};
+LETTERS.forEach(l=>{CARDS["L:"+l[1]]={id:"L:"+l[1],deck:"letters",ru:l[0]+" "+l[1],say:l[1],en:l[2]==="—"?"silent (hard sign)":l[2]==="'"?"softens the letter before it":"sound: "+l[2],sub:l[4]+" · "+l[5]+" = "+l[6],ans:l[1]}});
+PHRASES.forEach(p=>{CARDS["D:"+p[0]]={id:"D:"+p[0],deck:"dota",ru:p[0],say:p[0].replace("...",""),en:p[1],sub:p[3]||"",ans:p[0]}});
+SONGS.forEach(s=>{CARDS["S:"+s[0]]={id:"S:"+s[0],deck:"songs",ru:s[0],say:s[0],en:s[1],sub:s[2],lang:s[3]==="uk"?"uk-UA":"ru-RU",ans:s[0]}});
+function wordCard(w){return {id:"W:"+w.ru,deck:"words",ru:w.ru,say:w.ru,en:w.en||"(no meaning saved)",sub:w.src?("from "+w.src):"",ans:w.ru}}
+
+/* ---------- State + sync ---------- */
+const LS="russianLane.v1";
+let state={progress:{},deck:{},words:[],updatedAt:0};
+try{const s=JSON.parse(localStorage.getItem(LS)||"null");if(s&&typeof s==="object")state=Object.assign(state,s)}catch(e){}
+let dbRef=null, writing=Promise.resolve(), saveTimer=null;
+function save(){
+  state.updatedAt=Date.now();
+  try{localStorage.setItem(LS,JSON.stringify(state))}catch(e){}
+  if(dbRef){clearTimeout(saveTimer);saveTimer=setTimeout(()=>{
+    const body=JSON.parse(JSON.stringify(state));
+    writing=writing.then(()=>dbRef.set(body)).then(()=>setSync("Synced across your devices")).catch(()=>setSync("Sync paused: saved on this device"));
+  },1200)}
+  updateBadge();
+}
+function setSync(t){$("#sync").textContent=t}
+(async function initSync(){
+  const C=window.claude;if(!C||!C.use)return;
+  try{
+    const [user,db]=await Promise.all([C.use("user"),C.use("db")]);
+    if(!user||!db)return;
+    const id=await user.id();if(!id)return;
+    dbRef=db.doc("data/users/"+id+"/app");
+    setSync("Connecting…");
+    const timer=setTimeout(()=>setSync("Saved on this device"),10000);
+    let first=true;
+    dbRef.onSnapshot(snap=>{
+      clearTimeout(timer);
+      const d=snap.exists?snap.data():null;
+      if(d&&(d.updatedAt||0)>(state.updatedAt||0)){
+        state=Object.assign({progress:{},deck:{},words:[],updatedAt:0},JSON.parse(JSON.stringify(d)));
+        try{localStorage.setItem(LS,JSON.stringify(state))}catch(e){}
+        renderAll();
+      } else if(first&&(!d||(d.updatedAt||0)<(state.updatedAt||0))&&state.updatedAt){save()}
+      first=false;
+      setSync("Synced across your devices");
+    },()=>{clearTimeout(timer);setSync("Saved on this device")});
+  }catch(e){}
+})();
+
+/* ---------- Speech ---------- */
+let TTS=null, ttsOff=false, SAMPLE=null;
+if(window.claude&&window.claude.use){
+  window.claude.use("tts").then(t=>{TTS=t}).catch(()=>{});
+  window.claude.use("sample").then(s=>{SAMPLE=s;refreshAiButtons()}).catch(()=>{refreshAiButtons()});
+}
+function browserSpeak(text,lang){
+  try{
+    if(!("speechSynthesis" in window)){toast("Audio isn't available in this browser");return}
+    speechSynthesis.cancel();
+    const u=new SpeechSynthesisUtterance(text);u.lang=lang;u.rate=.85;
+    const v=speechSynthesis.getVoices().find(v=>v.lang&&v.lang.toLowerCase().startsWith(lang.slice(0,2)));
+    if(v)u.voice=v; else if(lang.startsWith("ru"))toast("No Russian voice found. Install one in your system's speech settings.");
+    speechSynthesis.speak(u);
+  }catch(e){}
+}
+function speak(text,lang){
+  lang=lang||"ru-RU";text=String(text).replace(/\u0301/g,"");
+  if(TTS&&!ttsOff){
+    TTS.speak(text,{language:lang,rate:.9}).catch(e=>{
+      const c=e&&e.code;
+      if(c==="not_granted")ttsOff=true;
+      if(!["stopped","replaced","viewer_stopped"].includes(c))browserSpeak(text,lang);
+    });
+  } else browserSpeak(text,lang);
+}
+const spkBtn=(text,lang)=>`<button class="spk" data-say="${esc(text)}" ${lang?`data-lang="${lang}"`:""} aria-label="Listen">${SPK}</button>`;
+document.addEventListener("click",e=>{const b=e.target.closest("[data-say]");if(b){e.preventDefault();speak(b.dataset.say,b.dataset.lang)}});
+
+/* ---------- Spaced repetition ---------- */
+const DAY=864e5, IV=[0,1,2,4,8,16,35,70];
+function inDeck(id){return !!state.deck[id]}
+function addToDeck(ids){let n=0;ids.forEach(id=>{if(!state.deck[id]){state.deck[id]=1;n++}});if(n)save();return n}
+function grade(id,g){ // g: 0 again, 1 good, 2 easy
+  const p=state.progress[id]||{b:0,due:0,seen:0};
+  if(g===0){p.b=0;p.due=Date.now()+60e3}
+  else{p.b=Math.min(IV.length-1,p.b+g);p.due=Date.now()+IV[p.b]*DAY-36e5}
+  p.seen=(p.seen||0)+1;state.progress[id]=p;state.deck[id]=1;save();
+}
+function isDue(id){const p=state.progress[id];return !p||p.due<=Date.now()}
+function allCardIds(){return Object.keys(state.deck).filter(id=>CARDS[id]||id.startsWith("W:"))}
+function getCard(id){if(CARDS[id])return CARDS[id];const w=state.words.find(w=>"W:"+w.ru===id);return w?wordCard(w):null}
+function updateBadge(){const n=allCardIds().filter(isDue).length;$("#dueBadge").textContent=n;$("#dueBadge").hidden=!n}
+
+/* ---------- Alphabet view ---------- */
+let curLetter=LETTERS[2];
+function renderLetterDetail(){
+  const l=curLetter;
+  $("#letterDetail").innerHTML=`<div class="detail"><div class="big">${l[0]}${l[1]}</div><div style="display:grid;gap:6px;min-width:0">
+   <div class="row"><b style="font-family:var(--mono);font-size:18px">${esc(l[2])}</b>${spkBtn(l[1])}</div>
+   <div>${esc(l[4])}</div>
+   <div class="row"><span class="ru" style="font-size:18px">${esc(l[5])}</span><span class="tr">${esc(translit(l[5]))}</span><span class="muted small">= ${esc(l[6])}</span>${spkBtn(l[5])}</div></div></div>`;
+}
+function renderLetters(){
+  $("#letterGroups").innerHTML=GROUPS.map(([g,name])=>`<div><div class="label" style="margin-bottom:8px">${name}</div><div class="lgrid">${
+    LETTERS.filter(l=>l[3]===g).map(l=>`<button class="letter ${g==="ff"?"ff":""}" data-l="${l[1]}" aria-label="${l[0]}"><b>${l[0]}${l[1]}</b><span>${esc(l[2])}</span></button>`).join("")}</div></div>`).join("");
+}
+$("#letterGroups").addEventListener("click",e=>{const b=e.target.closest("[data-l]");if(!b)return;curLetter=LETTERS.find(l=>l[1]===b.dataset.l);renderLetterDetail();speak(curLetter[1]);
+  if(window.innerWidth<700)$("#letterDetail").scrollIntoView({behavior:"smooth",block:"center"})});
+
+let quizScope="ff",quizN=0,quizOk=0,quizCur=null,quizLocked=false;
+function nextQuiz(){
+  const pool=LETTERS.filter(l=>l[3]!=="sign"&&(quizScope==="all"||l[3]===quizScope));
+  let q;do{q=pool[Math.floor(Math.random()*pool.length)]}while(q===quizCur&&pool.length>1);
+  quizCur=q;quizLocked=false;
+  const sounds=[...new Set(LETTERS.filter(l=>l[3]!=="sign").map(l=>l[2]))].filter(s=>s!==q[2]);
+  const opts=[q[2]];while(opts.length<4){const s=sounds[Math.floor(Math.random()*sounds.length)];if(!opts.includes(s))opts.push(s)}
+  opts.sort(()=>Math.random()-.5);
+  $("#quizQ").textContent=q[0]+q[1];
+  $("#quizOpts").innerHTML=opts.map(o=>`<button class="opt" data-o="${esc(o)}">${esc(o)}</button>`).join("");
+}
+$("#quizOpts").addEventListener("click",e=>{
+  const b=e.target.closest("[data-o]");if(!b||quizLocked)return;quizLocked=true;
+  const ok=b.dataset.o===quizCur[2];quizN++;if(ok)quizOk++;
+  b.classList.add(ok?"right":"wrong");
+  if(!ok)$$("#quizOpts .opt").find(x=>x.dataset.o===quizCur[2]).classList.add("right");
+  grade("L:"+quizCur[1],ok?1:0);speak(quizCur[1]);
+  $("#quizScore").textContent=quizOk+" / "+quizN;
+  setTimeout(nextQuiz,ok?700:1600);
+});
+$("#quizScope").addEventListener("click",e=>{const b=e.target.closest("[data-s]");if(!b)return;quizScope=b.dataset.s;$$("#quizScope .chip").forEach(c=>c.setAttribute("aria-pressed",c===b));nextQuiz()});
+
+const KB=[[["ё","`"]],[["й","q"],["ц","w"],["у","e"],["к","r"],["е","t"],["н","y"],["г","u"],["ш","i"],["щ","o"],["з","p"],["х","["],["ъ","]"]],
+[["ф","a"],["ы","s"],["в","d"],["а","f"],["п","g"],["р","h"],["о","j"],["л","k"],["д","l"],["ж",";"],["э","'"]],
+[["я","z"],["ч","x"],["с","c"],["м","v"],["и","b"],["т","n"],["ь","m"],["б",","],["ю","."]]];
+$("#kb").innerHTML=KB.map(r=>`<div class="krow">${r.map(([c,l])=>`<button class="key" data-k="${c}" data-say="${c}" aria-label="${c}"><b>${c.toUpperCase()}</b><i>${esc(l.toUpperCase())}</i></button>`).join("")}</div>`).join("");
+$("#kbTry").addEventListener("input",e=>{const v=e.target.value.toLowerCase();const last=v.slice(-1);$$(".key").forEach(k=>k.classList.toggle("hit",v.includes(k.dataset.k)&&k.dataset.k===last||false));
+  if(last&&/[a-z]/.test(last))$("#kbTry").title="Switch your keyboard to Russian";});
+
+/* ---------- Dota view ---------- */
+let curCat="basics";
+function renderCats(){
+  $("#catChips").innerHTML=CATS.map(([c,n])=>`<button class="chip" data-c="${c}" aria-pressed="${c===curCat}">${n}</button>`).join("")+
+   `<button class="btn small" id="addCat">Add this group to deck</button>`;
+}
+function renderPhrases(){
+  const list=PHRASES.filter(p=>p[2]===curCat);
+  $("#plist").innerHTML=list.map(p=>{
+    const id="D:"+p[0];const tag=p[2]==="rude"?`<span class="tag ${RUDE_TAG[p[4]][0]}">${RUDE_TAG[p[4]][1]}</span>`:"";
+    return `<div class="pitem"><div class="meta"><div class="row" style="gap:10px"><span class="ru">${esc(p[0])}</span><span class="tr">${esc(translit(p[0]))}</span>${tag}</div>
+      <div class="en">${esc(p[1])}</div>${p[3]?`<div class="note">${esc(p[3])}</div>`:""}</div>
+      <div class="acts">${spkBtn(p[0].replace("...",""))}${inDeck(id)?`<span class="added">In deck</span>`:`<button class="btn small" data-add="${esc(id)}">+ Deck</button>`}</div></div>`}).join("");
+  const ab=$("#addCat");if(ab)ab.disabled=list.every(p=>inDeck("D:"+p[0]));
+}
+$("#catChips").addEventListener("click",e=>{
+  const c=e.target.closest("[data-c]");if(c){curCat=c.dataset.c;renderCats();renderPhrases();return}
+  if(e.target.id==="addCat"){const n=addToDeck(PHRASES.filter(p=>p[2]===curCat).map(p=>"D:"+p[0]));toast(n?`Added ${n} cards`:"Already in your deck");renderCats();renderPhrases()}
+});
+document.addEventListener("click",e=>{const b=e.target.closest("[data-add]");if(!b)return;addToDeck([b.dataset.add]);toast("Added to deck");renderPhrases();renderSongs()});
+
+function refreshAiButtons(){
+  const on=!!SAMPLE;
+  $("#chatGo").disabled=!on;$("#lyAi").disabled=!on;
+  if(!on){
+    const msg="Claude features need the page opened in Claude while signed in.";
+    $("#chatOut").innerHTML=`<p class="small muted">${msg} The phrase list below works everywhere.</p>`;
+    $("#lyStatus").textContent=msg+" «Break down» still gives you pronunciation.";
+  } else {$("#chatOut").innerHTML="";$("#lyStatus").textContent=""}
+}
+function aiErr(e){const c=e&&e.code;if(c==="not_granted")return "Claude access was turned off for this page. You can allow it again from the page's Permissions menu.";if(c==="rate_limited")return "Claude is busy right now. Try again in a minute.";return "Something went wrong. Try again."}
+async function runChat(){
+  const text=$("#chatIn").value.trim();if(!text||!SAMPLE)return;
+  $("#chatGo").disabled=true;$("#chatOut").innerHTML=`<p class="small muted">Thinking…</p>`;
+  const prompt=`You help a beginner who is learning Russian and plays Dota 2 on EU West and Russian servers. They read Cyrillic slowly.
+Input: """${text}"""
+If the input is mainly Russian: translate it and explain each word, slang term and abbreviation.
+If the input is English or another language: write it the way a Russian Dota player would actually type it in chat (short, casual, usually lowercase, common game slang), and also a neutral polite version.
+Be honest about rude or offensive words and label them.
+Return only JSON: {"from":"ru" or "en","casual":"casual Russian chat version (or the original Russian)","neutral":"neutral Russian version","en":"English meaning","parts":[{"w":"Russian word","en":"meaning","note":"slang/abbreviation/rudeness note, or empty"}],"tip":"one short usage tip, or empty"}`;
+  try{
+    const r=await SAMPLE.json(prompt,{modelTier:"quick"});
+    const casual=r.casual||"",neutral=r.neutral||"";
+    const savable=r.from==="ru"?casual:casual;
+    $("#chatOut").innerHTML=`<div class="result">
+      <div class="label">${r.from==="ru"?"What it means":"How to type it"}</div>
+      <div class="row"><span class="big">${esc(casual)}</span>${spkBtn(casual)}</div>
+      <div class="tr">${esc(translit(casual))}</div>
+      ${r.from!=="ru"&&neutral&&neutral!==casual?`<div class="small"><span class="muted">Neutral: </span><span class="ru">${esc(neutral)}</span> ${spkBtn(neutral)}</div>`:""}
+      <div><b>${esc(r.en||"")}</b></div>
+      ${Array.isArray(r.parts)&&r.parts.length?`<div class="parts">${r.parts.map(p=>`<span class="part"><b>${esc(p.w)}</b> ${esc(p.en)}${p.note?` <span class="muted">· ${esc(p.note)}</span>`:""}</span>`).join("")}</div>`:""}
+      ${r.tip?`<div class="small muted">${esc(r.tip)}</div>`:""}
+      <div class="row"><button class="btn small" id="chatSave">Save to my words</button></div></div>`;
+    $("#chatSave").onclick=()=>{saveWord({ru:savable,en:r.en||"",src:"chat decoder"});$("#chatSave").outerHTML='<span class="added">Saved</span>'};
+  }catch(e){$("#chatOut").innerHTML=`<p class="small" style="color:var(--bad)">${esc(aiErr(e))}</p>`}
+  $("#chatGo").disabled=false;
+}
+$("#chatGo").addEventListener("click",runChat);
+$("#chatIn").addEventListener("keydown",e=>{if(e.key==="Enter")runChat()});
+
+/* ---------- Songs view ---------- */
+function renderSongs(){
+  $("#songList").innerHTML=SONGS.map(s=>{const id="S:"+s[0];const lang=s[3]==="uk"?"uk-UA":"";
+    return `<div class="song"><div class="row" style="justify-content:space-between;flex-wrap:nowrap;gap:8px"><span class="ru">${esc(s[0])}</span>${spkBtn(s[0],lang)}</div>
+    <div class="tr">${esc(translit(s[0]))}</div>
+    <div class="en reveal" tabindex="0" role="button" aria-label="Show meaning">${esc(s[1])}</div>
+    <div class="by">${esc(s[2])}${s[3]==="uk"?" · Ukrainian":""}</div>
+    <div class="row">${inDeck(id)?`<span class="added">In deck</span>`:`<button class="btn small" data-add="${esc(id)}">+ Deck</button>`}
+    <button class="btn small ghost" data-study="${esc(s[0])}">Study lyrics</button>
+    <a class="btn small ghost" style="text-decoration:none" target="_blank" rel="noopener" href="https://www.google.com/search?q=${encodeURIComponent(s[0]+" "+s[2]+" текст песни")}">Find lyrics ↗</a></div></div>`}).join("");
+}
+$("#songList").addEventListener("click",e=>{
+  const r=e.target.closest(".reveal");if(r){r.classList.toggle("shown");return}
+  const st=e.target.closest("[data-study]");if(st){$("#lyTitle").value=st.dataset.study;loadDraft();$("#lyricsPanel").scrollIntoView({behavior:"smooth"});$("#lyText").focus()}
+});
+$("#addAllSongs").addEventListener("click",()=>{const n=addToDeck(SONGS.map(s=>"S:"+s[0]));toast(n?`Added ${n} titles`:"Already in your deck");renderSongs()});
+
+// Lyrics
+const LYK="russianLane.lyrics";
+function drafts(){try{return JSON.parse(localStorage.getItem(LYK)||"{}")}catch(e){return {}}}
+function saveDraft(ai){try{const d=drafts();const k=$("#lyTitle").value.trim()||"_last";d[k]={text:$("#lyText").value,ai:ai||(d[k]&&d[k].text===$("#lyText").value?d[k].ai:null)};localStorage.setItem(LYK,JSON.stringify(d))}catch(e){}}
+function loadDraft(){const d=drafts()[$("#lyTitle").value.trim()||"_last"];$("#lyText").value=d?d.text:"";lyAI=d&&d.ai||null;$("#lyOut").innerHTML="";$("#wordBox").hidden=true;if(d&&d.text)renderLyrics()}
+let lyAI=null, lyLang="ru-RU";
+function lyricLines(){return $("#lyText").value.split(/\r?\n/).map(s=>s.trim()).filter(s=>s&&/[а-яёіїєґ]/i.test(s)).slice(0,120)}
+function renderLyrics(){
+  const lines=lyricLines();
+  lyLang=/[іїєґ]/i.test(lines.join(""))?"uk-UA":"ru-RU";
+  if(!lines.length){$("#lyOut").innerHTML=`<p class="small muted">No Cyrillic lines found. Paste the lyrics first.</p>`;return}
+  $("#lyOut").innerHTML=lines.map((ln,i)=>{
+    const a=lyAI&&lyAI[i];const shown=a&&a.stress?a.stress:ln;
+    const words=shown.split(/(\s+)/).map(t=>/\S/.test(t)?`<span class="w" data-li="${i}">${esc(t)}</span>`:t).join("");
+    return `<div class="line">${spkBtn(ln,lyLang==="uk-UA"?"uk-UA":"")}<div style="display:grid;gap:2px;min-width:0"><div class="ruline">${words}</div><div class="tr">${esc(translit(ln))}</div>${a&&a.en?`<div class="en">${esc(a.en)}</div>`:""}</div></div>`}).join("");
+}
+const clean=w=>w.replace(/\u0301/g,"").replace(/^[^а-яёіїєґa-z]+|[^а-яёіїєґa-z-]+$/gi,"").toLowerCase();
+$("#lyOut").addEventListener("click",e=>{
+  const w=e.target.closest(".w");if(!w)return;
+  $$(".w.sel").forEach(x=>x.classList.remove("sel"));w.classList.add("sel");
+  const word=clean(w.textContent);if(!word)return;
+  const li=+w.dataset.li;const a=lyAI&&lyAI[li];
+  const info=a&&Array.isArray(a.words)?a.words.find(x=>clean(String(x.w))===word):null;
+  speak(word,lyLang);
+  const exists=state.words.some(x=>x.ru===word);
+  $("#wordBox").hidden=false;
+  $("#wordBox").innerHTML=`<div class="row" style="justify-content:space-between"><div class="row"><span class="ru" style="font-size:22px">${esc(info&&info.base&&clean(info.base)!==word?word:word)}</span><span class="tr">${esc(translit(word))}</span>${spkBtn(word,lyLang==="uk-UA"?"uk-UA":"")}</div><button class="btn small ghost" id="wbClose" aria-label="Close">✕</button></div>
+   ${info&&info.base&&clean(info.base)!==word?`<div class="small muted">Dictionary form: <span class="ru">${esc(info.base)}</span></div>`:""}
+   <input type="text" id="wbMeaning" placeholder="Meaning (type your own if empty)" value="${esc(info?info.en:"")}">
+   <div class="row">${exists?`<span class="added">Already in my words</span>`:`<button class="btn small primary" id="wbSave">Save to my words</button>`}</div>`;
+  const s=$("#wbSave");if(s)s.onclick=()=>{saveWord({ru:word,en:$("#wbMeaning").value.trim(),src:$("#lyTitle").value.trim()||"lyrics"});s.outerHTML='<span class="added">Saved</span>'};
+  $("#wbClose").onclick=()=>{$("#wordBox").hidden=true;$$(".w.sel").forEach(x=>x.classList.remove("sel"))};
+});
+$("#lyBreak").addEventListener("click",()=>{saveDraft();renderLyrics()});
+$("#lySample").addEventListener("click",()=>{$("#lyTitle").value="Калинка";$("#lyText").value=SAMPLE_LYRICS;lyAI=null;saveDraft();renderLyrics()});
+$("#lyTitle").addEventListener("change",loadDraft);
+$("#lyText").addEventListener("input",()=>{lyAI=null});
+$("#lyAi").addEventListener("click",async()=>{
+  if(!SAMPLE)return;const lines=lyricLines();if(!lines.length){renderLyrics();return}
+  $("#lyAi").disabled=true;const res=[];const CH=12;
+  try{
+    for(let s=0;s<lines.length;s+=CH){
+      $("#lyStatus").textContent=`Translating lines ${s+1}–${Math.min(lines.length,s+CH)} of ${lines.length}…`;
+      const chunk=lines.slice(s,s+CH);
+      const prompt=`You are helping a beginner learner understand song lyrics (language: ${lyLang==="uk-UA"?"Ukrainian":"Russian"}). They read Cyrillic slowly.
+For each numbered line return one object in order. Return only JSON:
+{"lines":[{"stress":"the line exactly as given, adding an acute accent (U+0301) right after the stressed vowel of every word with 2+ syllables","en":"natural English translation of the line","words":[{"w":"word exactly as written in the line","base":"dictionary form","en":"short meaning in this context, max 6 words"}]}]}
+Include every word except personal names. Keep the same number of lines (${chunk.length}).
+Lines:
+${chunk.map((l,i)=>(i+1)+". "+l).join("\n")}`;
+      const r=await SAMPLE.json(prompt,{modelTier:"default"});
+      const arr=r&&Array.isArray(r.lines)?r.lines:[];
+      for(let i=0;i<chunk.length;i++)res.push(arr[i]||null);
+      lyAI=res.slice();renderLyrics();
+    }
+    saveDraft(lyAI);$("#lyStatus").textContent="Done. Tap any word to see its meaning and save it. Accent marks show which syllable to stress.";
+  }catch(e){$("#lyStatus").textContent=aiErr(e)}
+  $("#lyAi").disabled=false;
+});
+function saveWord(w){if(!w.ru)return;if(!state.words.some(x=>x.ru===w.ru))state.words.push(w);state.deck["W:"+w.ru]=1;save();toast("Saved to my words")}
+
+/* ---------- Review view ---------- */
+const DECKS=[["letters","Letters"],["dota","Dota"],["songs","Song titles"],["words","My words"]];
+let deckOn={letters:true,dota:true,songs:true,words:true}, mode="read", current=null, revealed=false, sessionDone=0;
+function queue(){return allCardIds().filter(id=>{const c=getCard(id);return c&&deckOn[c.deck]&&isDue(id)})
+  .sort((a,b)=>((state.progress[a]||{}).due||0)-((state.progress[b]||{}).due||0))}
+function renderStats(){
+  const ids=allCardIds();const learned=ids.filter(id=>(state.progress[id]||{}).b>=3).length;
+  $("#stats").innerHTML=`<div><b>${queue().length}</b><span>due now</span></div><div><b>${ids.length}</b><span>cards in deck</span></div><div><b>${learned}</b><span>well known</span></div><div><b>${sessionDone}</b><span>reviewed today</span></div>`;
+  $("#deckChips").innerHTML=`<span class="label">Decks</span>`+DECKS.map(([d,n])=>{const c=allCardIds().filter(id=>{const k=getCard(id);return k&&k.deck===d}).length;return `<button class="chip" data-d="${d}" aria-pressed="${deckOn[d]}">${n} · ${c}</button>`}).join("");
+}
+function nextCard(){
+  const q=queue();current=q[0]?getCard(q[0]):null;revealed=false;renderCard();
+}
+function renderCard(){
+  renderStats();
+  const A=$("#cardArea");
+  if(!allCardIds().length){A.innerHTML=`<div class="card"><div class="front small">Your deck is empty</div><p class="muted">Add phrases from Dota chat, song titles from Songs, or take the alphabet quiz. Or start with the basics:</p><div class="row" style="justify-content:center"><button class="btn primary" id="starter">Add letters + Dota basics</button></div></div>`;
+    $("#starter").onclick=()=>{addToDeck(LETTERS.map(l=>"L:"+l[1]).concat(PHRASES.filter(p=>p[2]==="basics"||p[2]==="abbr").map(p=>"D:"+p[0])));nextCard()};return}
+  if(!current){A.innerHTML=`<div class="card"><div class="front small">All done for now</div><p class="muted">Nothing is due. Come back later, or add more cards. Better yet, go type <span class="ru">гг вп</span> in a real game.</p></div>`;return}
+  const c=current, lang=c.lang||"ru-RU", smallF=c.ru.length>14?"small":"";
+  if(mode==="read"||c.deck==="letters"){
+    A.innerHTML=`<div class="card"><div class="label">${DECKS.find(d=>d[0]===c.deck)[1]}</div><div class="front ${smallF}">${esc(c.ru)}</div>
+      ${revealed?`<div class="back"><div class="row" style="justify-content:center">${c.deck==="letters"?"":`<span class="tr" style="font-size:15px">${esc(translit(c.ru))}</span>`}${spkBtn(c.say,lang==="uk-UA"?lang:"")}</div><div class="en">${esc(c.en)}</div>${c.sub?`<div class="small muted">${esc(c.sub)}</div>`:""}</div>
+      <div class="grades"><button class="btn g-again" data-g="0">Again</button><button class="btn g-good" data-g="1">Good</button><button class="btn" data-g="2">Easy</button></div>`
+      :`<p class="small muted">Say it out loud, then check.</p><div class="row" style="justify-content:center"><button class="btn primary" id="reveal">Show answer</button></div>`}</div>`;
+  } else {
+    A.innerHTML=`<div class="card"><div class="label">Type it in Russian</div><div class="front small">${esc(c.en)}</div>${c.sub&&c.deck!=="songs"?`<div class="small muted">${esc(c.sub.replace(new RegExp(c.ru.replace(/[.*+?^${}()|[\]\\]/g,"\\$&"),"gi"),"…"))}</div>`:""}
+      <input type="text" class="typein" id="typeIn" lang="ru" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="Russian keyboard on">
+      ${revealed?`<div id="verdict"></div><div class="grades"><button class="btn g-again" data-g="0">Again</button><button class="btn g-good" data-g="1">Good</button><button class="btn" data-g="2">Easy</button></div>`:`<div class="row" style="justify-content:center"><button class="btn primary" id="check">Check</button></div>`}</div>`;
+    const ti=$("#typeIn");if(revealed){ti.value=typed;showVerdict()}else{ti.focus();ti.addEventListener("keydown",e=>{if(e.key==="Enter")check()})}
+  }
+  const r=$("#reveal");if(r)r.onclick=()=>{revealed=true;renderCard();speak(c.say,lang)};
+  const ch=$("#check");if(ch)ch.onclick=check;
+}
+let typed="";
+const norm=s=>String(s).toLowerCase().replace(/ё/g,"е").replace(/\u0301/g,"").replace(/[^а-яеіїєґ0-9 ]/g,"").replace(/\s+/g," ").trim();
+function check(){typed=$("#typeIn").value;revealed=true;renderCard();speak(current.say,current.lang)}
+function showVerdict(){
+  const ok=norm(typed)===norm(current.ans);
+  $("#verdict").innerHTML=`<div class="verdict ${ok?"ok":"no"}">${ok?"Correct":"Not quite"}</div><div class="row" style="justify-content:center"><span class="ru" style="font-size:24px">${esc(current.ru)}</span>${spkBtn(current.say,current.lang==="uk-UA"?"uk-UA":"")}</div><div class="tr">${esc(translit(current.ru))}</div>${/[a-z]/i.test(typed)?`<div class="small muted">You typed Latin letters. Switch your keyboard to Russian (Win + Space).</div>`:""}`;
+}
+$("#cardArea").addEventListener("click",e=>{const g=e.target.closest("[data-g]");if(!g||!current)return;grade(current.id,+g.dataset.g);sessionDone++;nextCard()});
+document.addEventListener("keydown",e=>{
+  if(location.hash!=="#review"||e.target.tagName==="INPUT"||e.target.tagName==="TEXTAREA")return;
+  if(e.key===" "&&!revealed&&$("#reveal")){e.preventDefault();$("#reveal").click()}
+  else if(revealed&&["1","2","3"].includes(e.key)){const b=$(`[data-g="${+e.key-1}"]`);if(b)b.click()}
+});
+$("#deckChips").addEventListener("click",e=>{const b=e.target.closest("[data-d]");if(!b)return;deckOn[b.dataset.d]=!deckOn[b.dataset.d];nextCard()});
+$$("[data-m]").forEach(b=>b.addEventListener("click",()=>{mode=b.dataset.m;$$("[data-m]").forEach(x=>x.setAttribute("aria-pressed",x===b));revealed=false;renderCard()}));
+
+/* ---------- Routing ---------- */
+const VIEWS=["alphabet","dota","songs","review"];
+function route(){
+  const v=VIEWS.includes(location.hash.slice(1))?location.hash.slice(1):"alphabet";
+  VIEWS.forEach(x=>{$("#v-"+x).hidden=x!==v});
+  $$("nav.tabs a").forEach(a=>a.toggleAttribute("aria-current",false)||a.dataset.v===v&&a.setAttribute("aria-current","page"));
+  if(v==="review")nextCard();
+  window.scrollTo(0,0);
+}
+window.addEventListener("hashchange",route);
+function renderAll(){renderLetterDetail();renderLetters();renderCats();renderPhrases();renderSongs();updateBadge();if(location.hash==="#review")nextCard()}
+renderAll();nextQuiz();refreshAiButtons();route();
+try{const d=drafts()["_last"];if(d&&d.text){$("#lyText").value=d.text;lyAI=d.ai||null}}catch(e){}
+})();
+</script>
